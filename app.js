@@ -50,35 +50,32 @@ function tsvFormatter(data, _, header) {
 };
 
 d3.queue()
-  .defer(d3.json, 'https://unpkg.com/world-atlas@1/world/110m.json')
+/*  .defer(d3.json, 'https://unpkg.com/world-atlas@1/world/110m.json')
   .defer(d3.tsv, 'https://raw.githubusercontent.com/KoGor/Maps.GeoInfo/master/world-country-names.tsv', tsvFormatter)
-  .defer(d3.json, 'https://github.com/mledoze/countries/blob/442472de98e80f4a44f1028960dbb0dfb1d942fe/dist/countries.json')
+  .defer(d3.json, 'https://github.com/mledoze/countries/blob/442472de98e80f4a44f1028960dbb0dfb1d942fe/dist/countries.json')*/
+  .defer(d3.json, './data/easy-countries-topo.json')
   .defer(d3.text, 'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_players.csv')
   .defer(d3.text, 'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_rankings_current.csv')
-  .await((err, topoJson, countryNames, countries, rawPlayers, rawRankings) => {
+  .await((err, topoJson, rawPlayers, rawRankings) => {
 
     if(err) throw err;
-    console.log(countryNames);
-
 
     /* Format raw data */
     const players = playerFormatter(rawPlayers); 
     const rankings = playerFormatter(rawRankings);
 
-    const data = topojson.feature(topoJson, topoJson.objects.countries).features;
+    const data = topojson.feature(topoJson, topoJson.objects.countryMap).features;
 
     //Add country name to map
-    data.forEach(d => {
+/*    data.forEach(d => {
       let foundCountry = countryNames.find(country => country.id === +d.id);
       d.properties.players = players.filter(pl => pl.countryCode  === foundCountry.name);
       d.properties.name = foundCountry ? foundCountry.name : undefined;
-    });
-    console.log(data);
+    });*/
 
     const projection = d3.geoMercator()
-                         .translate([width/2 -10, height/2 +80])
+                         .clipExtent([[0, 10], [width, height]])
 
-    projection.scale(projection.scale() * 0.8);
 
     const path = d3.geoPath(projection);
 
