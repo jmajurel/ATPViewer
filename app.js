@@ -1,19 +1,15 @@
 const width = 800;
-const height = 600;
+const height = 500;
 
-d3.select('svg')
+d3.selectAll('svg')
   .attr('width', width)
-  .attr('height', height)
-  .style('border', 'solid purple 2px');
+  .attr('height', height);
 
-const dateExtracter = /^(\d{4})(\d{2})(\d{2})$/g ;
+const dateParser = d3.timeParse('%Y%m%d');
 
 const playerFormatter = (text) => {
 
   return d3.csvParseRows(text, row => {
-
-    let result = dateExtracter.exec(row[4]);
-    let date = result ? `${result[1]}-${result[2]}-${result[3]}`: null;
 
     return {
       id: +row[0],
@@ -21,7 +17,7 @@ const playerFormatter = (text) => {
       lastName: row[2],
       hand: row[3],
       countryCode: row[5],
-      birthDate: date
+      birthDate: dateParser(row[4])
     };
   });
 };
@@ -30,11 +26,8 @@ const rankFormatter = (text) => {
 
   return d3.csvParseRows(text, row => {
 
-    let result = dateExtracter.exec(row[0]);
-    let date = result ? `${result[1]}-${result[2]}-${result[3]}`: null;
-
     return {
-      rankingDate: date,
+      date: dateParser(row[0]),
       ranking: +row[1],
       playerId: +row[2],
       rankingPoint: +row[3]
@@ -42,65 +35,120 @@ const rankFormatter = (text) => {
   })
 };
 
-function tsvFormatter(data, _, header) {
-  return {
-    id: +data[header[0]],
-    name: data[header[1]]
-  };
-};
+const tooltip = d3.select('#tooltip');
 
 d3.queue()
-/*  .defer(d3.json, 'https://unpkg.com/world-atlas@1/world/110m.json')
-  .defer(d3.tsv, 'https://raw.githubusercontent.com/KoGor/Maps.GeoInfo/master/world-country-names.tsv', tsvFormatter)
-  .defer(d3.json, 'https://github.com/mledoze/countries/blob/442472de98e80f4a44f1028960dbb0dfb1d942fe/dist/countries.json')*/
-  .defer(d3.json, './data/finalmap.json')
+  .defer(d3.json, './data/worldmap.json')
   .defer(d3.text, 'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_players.csv')
   .defer(d3.text, 'https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_rankings_current.csv')
-  .await((err, world, rawPlayers, rawRankings) => {
+  .await((err, worldTopo, rawPlayers, rawRankings) => {
 
     if(err) throw err;
 
-    /* Format raw data */
-    const players = playerFormatter(rawPlayers); 
-    const rankings = playerFormatter(rawRankings);
+    /* Format raw data player */
+    let players = playerFormatter(rawPlayers); 
+    let rankings = rankFormatter(rawRankings);
 
-    //const data = topojson.feature(topoJson, topoJson.objects.countryMap).features;
+    console.log(rankings[0]);
+    //players.map(player => player.rankings = rankings.filter(rank => rank.playerId === player.id));
+    let maxDate = d3.max(rankings, d=> d.date);
 
-    //Add country name to map
-/*    data.forEach(d => {
-      let foundCountry = countryNames.find(country => country.id === +d.id);
-      d.properties.players = players.filter(pl => pl.countryCode  === foundCountry.name);
-      d.properties.name = foundCountry ? foundCountry.name : undefined;
-    });*/
-    console.log(world.features);
+    /* convert topoJson to GeoJson */
+    const worldMap = topojson.feature(worldTopo, worldTopo.objects.seventh).features;
 
-    world(country => country.properties.players = rawPlayers.filter(pl => pl.countryCode === country.code))
+    /* join players to world map */
+    worldMap.map(country => country.properties.players = players.filter(pl => pl.countryCode === country.properties['alpha-3']));
+
+    players = players.splice(0, 50)
+
+    let simulation = d3.forceSimulation(players)
+                         .force('charge', d3.forceManyBody()
+                                            .strength(-2))
+                         .force('center', d3.forceCenter(width/2, height/2))
+                         .force('collision', d3.forceCollide()
+                                               .radius(10))
+
+
+    simulation.on('tick', () => {
+      const updateGraph = d3.select('#graph')
+                            .selectAll('circle')
+                              .data(players);
+
+      updateGraph
+        .enter()
+        .append('circle')
+          .classed('player', true)
+          .style('fill', 'lightblue')
+          .style('stroke-width', 1)
+          .style('stroke', 'darkblue')
+          .attr('r', 10)
+          .on('mouseover', (d) => {
+            tooltip
+              .style('opacity', 0.8)
+              .html(`
+                <p><strong>${d.firstName} ${d.lastName}</strong></p>
+              `);
+          })
+          .on('mousemove', () => {
+            tooltip
+              .style('top', d3.event.pageY + (tooltip.node().offsetHeight/2) + 5 + 'px')
+              .style('left', d3.event.pageX - (tooltip.node().offsetWidth / 2) + 5 + 'px')
+          })
+          .on('mouseout', () => {
+            tooltip
+              .html('')
+              .style('opacity', 0);
+          })
+        .merge(updateGraph)
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y)
+
+    });
+
 
     const path = d3.geoPath();
-
-    const updateMap = d3.select('svg')
+    const updateMap = d3.select('#map')
                         .selectAll('path')
-                          .data(world.features);
-
+                          .data(worldMap);
     updateMap
 	.enter()
 	.append('path')
+          .classed('country', true)
 	  .attr('d', path)
           .style('fill', 'grey')
-          .on('mouseover touchover', (d, i, nodes) => {
-	    console.log(d.properties.players);
-
-            d3.select(d3.event.target)
-              .transition()
-		.delay(100)
-              .style('fill', 'blue');
-
+          .on('mouseenter touchstart', tooltipOn)
+          .on('mousemove', () => {
+            tooltip
+              .style('top', d3.event.pageY + (tooltip.node().offsetHeight/2) + 5  + 'px')
+              .style('left', d3.event.pageX - (tooltip.node().offsetWidth / 2) + 5 + 'px')
           })
-          .on('mouseout', () => {
-            d3.select(d3.event.target)
-              .transition()
-		.delay(100)
-              .style('fill', 'grey')
-          })
+          .on('mouseout touchend', tooltipOff)
+          .on('click', () => console.log('clicked!'));
+});
 
-  })
+function tooltipOn(d) {
+  tooltip
+    .style('opacity', 0.8)
+    .html(`
+      <p><strong>${d.properties.name}</strong></p>
+      <p>${d.properties.players.length} players</p>
+    `);
+
+  d3.select(d3.event.target)
+    .transition()
+      .delay(100)
+    .style('fill', '#0074D9');
+}
+
+function tooltipOff() {
+          
+  d3.select(d3.event.target)
+    .transition()
+      .delay(100)
+    .style('fill', 'grey');
+
+  tooltip
+    .style('opacity', 0)
+    .html('');
+}
+
