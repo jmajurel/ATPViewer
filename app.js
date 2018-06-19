@@ -49,9 +49,22 @@ d3.queue()
     let players = playerFormatter(rawPlayers); 
     let rankings = rankFormatter(rawRankings);
 
-    console.log(rankings[0]);
-    //players.map(player => player.rankings = rankings.filter(rank => rank.playerId === player.id));
-    let maxDate = d3.max(rankings, d=> d.date);
+    let maxDate = d3.max(rankings, d => d.date);
+
+    //get only the rankings for maxdate
+    rankings = rankings.filter(rank => rank.date.toDateString() === maxDate.toDateString());
+
+    let minRanking = d3.max(rankings, d => d.ranking);
+
+    //join rankings data to their players
+    players = players.map(player => {
+      player.ranking = rankings.find(rank => rank.playerId === player.id)
+      return player;
+    });
+
+    players = players.splice(0, 100);
+
+    let links = makeLinks(players);
 
     /* convert topoJson to GeoJson */
     const worldMap = topojson.feature(worldTopo, worldTopo.objects.seventh).features;
@@ -59,20 +72,44 @@ d3.queue()
     /* join players to world map */
     worldMap.map(country => country.properties.players = players.filter(pl => pl.countryCode === country.properties['alpha-3']));
 
-    players = players.splice(0, 50)
 
     let simulation = d3.forceSimulation(players)
                          .force('charge', d3.forceManyBody()
-                                            .strength(-2))
+					       .strength(-3)
+					       .distanceMin(20))
                          .force('center', d3.forceCenter(width/2, height/2))
-                         .force('collision', d3.forceCollide()
-                                               .radius(10))
+			 .force('link', d3.forceLink(links)
+			                  .distance(d => {
+					    if(d.source.ranking && d.target.ranking){
+					      let diff = Math.abs(d.source.ranking - d.target.ranking)
+					      let ratio = 0.4 * height/ (minRanking - 1);
+					      return diff * ratio;
+					    } else {
+					      return 40;
+					    }
+					  }))
+
 
 
     simulation.on('tick', () => {
       const updateGraph = d3.select('#graph')
                             .selectAll('circle')
                               .data(players);
+
+      const updateLinks = d3.select('#graph')
+	                    .selectAll('line')
+			      .data(links);
+      updateLinks
+        .enter()
+	.append('line')
+	  .classed('links', true)
+	  .attr('stroke', 'lightgrey')
+	  .attr('stroke-width', 1)
+	.merge(updateLinks)
+	  .attr('x1', d => d.source.x)
+	  .attr('y1', d => d.source.y)
+	  .attr('x2', d => d.target.x)
+	  .attr('y2', d => d.target.y)
 
       updateGraph
         .enter()
@@ -87,6 +124,7 @@ d3.queue()
               .style('opacity', 0.8)
               .html(`
                 <p><strong>${d.firstName} ${d.lastName}</strong></p>
+                <p>${d.countryCode}</p>
               `);
           })
           .on('mousemove', () => {
@@ -102,6 +140,8 @@ d3.queue()
         .merge(updateGraph)
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
+
+
 
     });
 
@@ -138,7 +178,7 @@ function tooltipOn(d) {
     .transition()
       .delay(100)
     .style('fill', '#0074D9');
-}
+};
 
 function tooltipOff() {
           
@@ -150,5 +190,19 @@ function tooltipOff() {
   tooltip
     .style('opacity', 0)
     .html('');
-}
+};
 
+function makeLinks(nodes) {
+
+//create a links between compatriote player
+
+  return nodes.reduce((acc, currPlayer, _, players) => {
+    let compatriote = players.find(player => player !== currPlayer && player.countryCode === currPlayer.countryCode);
+    if (!compatriote) return acc;
+    let existing = acc.find(exEntry => exEntry.source.id === currPlayer.id && exEntry.target.id === compatriote.id || exEntry.target.id === currPlayer.id && exEntry.source.id === compatriote.id);
+    if(!existing) {
+      acc.push({source: currPlayer, target: compatriote});
+    }
+    return acc;
+  }, []);
+}
