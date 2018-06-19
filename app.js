@@ -53,16 +53,19 @@ d3.queue()
 
     //get only the rankings for maxdate
     rankings = rankings.filter(rank => rank.date.toDateString() === maxDate.toDateString());
+    rankings = rankings.splice(0, 100);
 
     let minRanking = d3.max(rankings, d => d.ranking);
 
     //join rankings data to their players
+    players = players.filter(player => rankings.find(rank => rank.playerId === player.id));
     players = players.map(player => {
-      player.ranking = rankings.find(rank => rank.playerId === player.id)
+      player.ranking = rankings.find(rank => rank.playerId === player.id).ranking
       return player;
     });
 
-    players = players.splice(0, 100);
+    //players = players.splice(0, 100);
+    console.log(players);
 
     let links = makeLinks(players);
 
@@ -75,19 +78,21 @@ d3.queue()
 
     let simulation = d3.forceSimulation(players)
                          .force('charge', d3.forceManyBody()
-					       .strength(-3)
-					       .distanceMin(20))
+					       .strength(-3))
                          .force('center', d3.forceCenter(width/2, height/2))
+                         .force('collision', d3.forceCollide(10))
 			 .force('link', d3.forceLink(links)
-			                  .distance(d => {
+                                          .id(d => d.id))
+/*			                  .distance(d => {
 					    if(d.source.ranking && d.target.ranking){
 					      let diff = Math.abs(d.source.ranking - d.target.ranking)
-					      let ratio = 0.4 * height/ (minRanking - 1);
+					      let ratio = 0.2 * height/ (minRanking - 1);
 					      return diff * ratio;
 					    } else {
 					      return 40;
 					    }
 					  }))
+                                          */
 
 
 
