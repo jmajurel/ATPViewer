@@ -1,39 +1,9 @@
-const width = 800;
+const width = 600;
 const height = 500;
 
 d3.selectAll('svg')
   .attr('width', width)
   .attr('height', height);
-
-const dateParser = d3.timeParse('%Y%m%d');
-
-const playerFormatter = (text) => {
-
-  return d3.csvParseRows(text, row => {
-
-    return {
-      id: +row[0],
-      firstName: row[1],
-      lastName: row[2],
-      hand: row[3],
-      countryCode: row[5],
-      birthDate: dateParser(row[4])
-    };
-  });
-};
-
-const rankFormatter = (text) => {
-
-  return d3.csvParseRows(text, row => {
-
-    return {
-      date: dateParser(row[0]),
-      ranking: +row[1],
-      playerId: +row[2],
-      rankingPoint: +row[3]
-    };
-  })
-};
 
 const tooltip = d3.select('#tooltip');
 
@@ -53,59 +23,52 @@ d3.queue()
 
     //get only the rankings for maxdate
     rankings = rankings.filter(rank => rank.date.toDateString() === maxDate.toDateString());
+    //get only the 100 first player from dataset
     rankings = rankings.splice(0, 100);
 
-    let minRanking = d3.max(rankings, d => d.ranking);
+    players = makeNodes(players, rankings);
 
-    //join rankings data to their players
-    players = players.filter(player => rankings.find(rank => rank.playerId === player.id));
-    players = players.map(player => {
-      player.ranking = rankings.find(rank => rank.playerId === player.id).ranking
-      return player;
-    });
-
-    //players = players.splice(0, 100);
-    console.log(players);
-
+    /* force directed graph */
     let links = makeLinks(players);
-
-    /* convert topoJson to GeoJson */
-    const worldMap = topojson.feature(worldTopo, worldTopo.objects.seventh).features;
-
-    /* join players to world map */
-    worldMap.map(country => country.properties.players = players.filter(pl => pl.countryCode === country.properties['alpha-3']));
-
 
     let simulation = d3.forceSimulation(players)
                          .force('charge', d3.forceManyBody()
-					       .strength(-3))
+			                    .strength(-2))
                          .force('center', d3.forceCenter(width/2, height/2))
-                         .force('collision', d3.forceCollide(10))
+                         .force('collision', d3.forceCollide(-2))
 			 .force('link', d3.forceLink(links)
                                           .id(d => d.id))
-/*			                  .distance(d => {
-					    if(d.source.ranking && d.target.ranking){
-					      let diff = Math.abs(d.source.ranking - d.target.ranking)
-					      let ratio = 0.2 * height/ (minRanking - 1);
-					      return diff * ratio;
-					    } else {
-					      return 40;
-					    }
-					  }))
-                                          */
+
+     const drag = d3.drag()
+		     .on('start', () => {
+		       simulation.alphaTarget(0.5);
+		       simulation.restart();
+		     })
+		     .on('drag', d => {
+		       d.fx = d3.event.x;
+		       d.fy = d3.event.y;
+		     })
+		     .on('end', d => {
+		       d.fx = null;
+		       d.fy = null;
+		       simulation.alphaTarget(0);
+		     })   
+
+    simulation.on('tick', () => drawGraph(players, links));
 
 
+    function drawGraph(players, links) {
 
-    simulation.on('tick', () => {
       const updateGraph = d3.select('#graph')
-                            .selectAll('circle')
-                              .data(players);
+			    .selectAll('circle')
+			      .data(players, d => d.id);
 
       const updateLinks = d3.select('#graph')
-	                    .selectAll('line')
+			    .selectAll('line')
 			      .data(links);
+
       updateLinks
-        .enter()
+	.enter()
 	.append('line')
 	  .classed('links', true)
 	  .attr('stroke', 'lightgrey')
@@ -117,44 +80,62 @@ d3.queue()
 	  .attr('y2', d => d.target.y)
 
       updateGraph
-        .enter()
-        .append('circle')
-          .classed('player', true)
-          .style('fill', 'lightblue')
-          .style('stroke-width', 1)
-          .style('stroke', 'darkblue')
-          .attr('r', 10)
-          .on('mouseover', (d) => {
-            tooltip
-              .style('opacity', 0.8)
-              .html(`
-                <p><strong>${d.firstName} ${d.lastName}</strong></p>
-                <p>${d.countryCode}</p>
-              `);
-          })
-          .on('mousemove', () => {
-            tooltip
-              .style('top', d3.event.pageY + (tooltip.node().offsetHeight/2) + 5 + 'px')
-              .style('left', d3.event.pageX - (tooltip.node().offsetWidth / 2) + 5 + 'px')
-          })
-          .on('mouseout', () => {
-            tooltip
-              .html('')
-              .style('opacity', 0);
-          })
-        .merge(updateGraph)
-          .attr('cx', d => d.x)
-          .attr('cy', d => d.y)
+	.enter()
+	.append('circle')
+	  .classed('player', true)
+	  .style('fill', 'lightblue')
+	  .style('stroke-width', 1)
+	  .style('stroke', 'darkblue')
+	  .attr('r', 10)
+	  .on('mouseover', (d) => {
+	    tooltip
+	      .style('opacity', 0.8)
+	      .html(`
+		<p><strong>${d.firstName} ${d.lastName}</strong></p>
+		<p>${d.countryCode}</p>
+	      `);
+	  })
+	  .on('mousemove', () => {
+	    tooltip
+	      .style('top', d3.event.pageY + (tooltip.node().offsetHeight/2) + 5 + 'px')
+	      .style('left', d3.event.pageX - (tooltip.node().offsetWidth / 2) + 5 + 'px')
+	  })
+	  .on('mouseout', () => {
+	    tooltip
+	      .html('')
+	      .style('opacity', 0);
+	  })
+	  .call(drag)
+	.merge(updateGraph)
+	  .attr('cx', d => d.x)
+	  .attr('cy', d => d.y)
+
+    }
+
+    /* convert topoJson to GeoJson */
+    const worldMap = topojson.feature(worldTopo, worldTopo.objects.seventh).features;
+
+    /* join players to world map */
+    worldMap.map(country => country.properties.players = players.filter(pl => pl.countryCode === country.properties['alpha-3']));
 
 
+    const map = d3.select('#map')
+      .append('g')
+        .attr('width', width)
+        .attr('height', height)
+	.attr('transform', 'scale(0.7)')
 
-    });
+    map.call(d3.zoom()
+	.on('zoom', () => {
+	  map.attr('transform', d3.event.transform)
+	}))
 
 
-    const path = d3.geoPath();
-    const updateMap = d3.select('#map')
-                        .selectAll('path')
-                          .data(worldMap);
+    let path = d3.geoPath();
+
+    const updateMap = map.selectAll('path')
+                           .data(worldMap);
+
     updateMap
 	.enter()
 	.append('path')
@@ -168,34 +149,21 @@ d3.queue()
               .style('left', d3.event.pageX - (tooltip.node().offsetWidth / 2) + 5 + 'px')
           })
           .on('mouseout touchend', tooltipOff)
-          .on('click', () => console.log('clicked!'));
+          .on('click', d => {
+	     players = players.filter(player => player.countryCode === d.properties['alpha-3']);
+	     console.log(players);
+	     players = makeNodes(players, rankings);
+	     links = makeLinks(players);
+	     drawGraph(players, links);
+	     simulation.restart();
+	     console.log('triggered');
+	  });
+
 });
 
-function tooltipOn(d) {
-  tooltip
-    .style('opacity', 0.8)
-    .html(`
-      <p><strong>${d.properties.name}</strong></p>
-      <p>${d.properties.players.length} players</p>
-    `);
 
-  d3.select(d3.event.target)
-    .transition()
-      .delay(100)
-    .style('fill', '#0074D9');
-};
 
-function tooltipOff() {
-          
-  d3.select(d3.event.target)
-    .transition()
-      .delay(100)
-    .style('fill', 'grey');
 
-  tooltip
-    .style('opacity', 0)
-    .html('');
-};
 
 function makeLinks(nodes) {
 
@@ -210,4 +178,15 @@ function makeLinks(nodes) {
     }
     return acc;
   }, []);
+}
+
+function makeNodes(players, rankings) {
+
+  //join rankings data to their players
+  players = players.filter(player => rankings.find(rank => rank.playerId === player.id));
+
+  return players.map(player => {
+    player.ranking = rankings.find(rank => rank.playerId === player.id).ranking
+    return player;
+  });
 }
