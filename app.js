@@ -79,7 +79,6 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
     simulation.on('tick', ticked);
 
     function ticked() {
-      console.log(simulation.alpha());
 
       node
         .attr('cx', d => { return d.x = Math.max(radius, Math.min(width - radius, d.x)); })
@@ -135,12 +134,13 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
     }
 
     /* convert topoJson to GeoJson */
-    const worldMap = topojson.feature(worldTopo, worldTopo.objects.seventh).features;
+    const worldMap = topojson.feature(worldTopo, worldTopo.objects.tracts).features;
 
     /* join players to world map */
     worldMap.map(country => country.properties.players = nodes.filter(pl => pl.countryCode === country.properties['alpha-3']));
 
-
+    const projection = d3.geoFahey()
+                         .translate([width/2, height/2]);
 
 /*    map.call(d3.zoom()
 	.on('zoom', () => {
@@ -148,7 +148,7 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
           map.attr("transform", "translate(" + transform.x + "," + transform.y + ") scale(" + transform.k + ")");
 	}))
 */
-    let path = d3.geoPath();
+    let path = d3.geoPath(projection);
 
     const updateMap = d3.select('#map')
                           .selectAll('path')
