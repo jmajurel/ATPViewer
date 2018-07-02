@@ -1,6 +1,6 @@
 const width = 600;
 const height = 500;
-const radius = 10;
+const radius = 12;
       
 d3.selectAll('svg')
   .attr('width', width)
@@ -20,12 +20,12 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
 
     /* Format raw data player */
     const playersDataset = playerFormatter(rawPlayers); 
-    let rankings = rankFormatter(rawRankings);
+    const rankingsDataset = rankFormatter(rawRankings);
 
-    let maxDate = d3.max(rankings, d => d.date);
+    let maxDate = d3.max(rankingsDataset, d => d.date);
 
     //get only the rankings for maxdate
-    rankings = rankings.filter(rank => rank.date.toDateString() === maxDate.toDateString());
+    let rankings = rankingsDataset.filter(rank => rank.date.toDateString() === maxDate.toDateString());
 
     //get only the 100 first player from dataset
     rankings = rankings.splice(0, 100);
@@ -40,16 +40,14 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
 
     // create force directed simulation
     let simulation = d3.forceSimulation(nodes)
-                         .force('charge', d3.forceManyBody()
-                                            .strength(-2))
+                         .force('charge', d3.forceManyBody().strength(-2))
                          .force('center', d3.forceCenter(width/2, height/2))
-                         .force('collision', d3.forceCollide(-2))
+                         .force('collision', d3.forceCollide(radius * 2))
                          .force('link', d3.forceLink(links)
                                           .id(d => d.id));
 
-
     let node = d3.select('#graph')
-                   .selectAll('circle');
+                   .selectAll('image');
 
     let link = d3.select('#graph')
                    .selectAll('line');
@@ -57,18 +55,15 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
     //create drag function for the force directed graph
     const drag = d3.drag()
                     .on('start', d => {
-                      console.log('start dragging');
                       simulation.alphaTarget(0.3).restart();
                       d.fx = d.x;
                       d.fy = d.y;
                     })
                     .on('drag', d => {
-                      console.log('dragging');
                       d.fx = d3.event.x;
                       d.fy = d3.event.y;
                     })
                     .on('end', d => {
-                      console.log('stopped dragging');
                       d.fx = null;
                       d.fy = null;
                       simulation.alphaTarget(0);
@@ -81,20 +76,20 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
     function ticked() {
 
       node
-        .attr('cx', d => { return d.x = Math.max(radius, Math.min(width - radius, d.x)); })
-        .attr('cy', d => { return d.y = Math.max(radius, Math.min(height - radius, d.y)); })
+        .attr('x', d => { return d.x = Math.max(0, Math.min(width - radius * 2, d.x)); })
+        .attr('y', d => { return d.y = Math.max(0, Math.min(height - radius * 2, d.y)); })
 
       link
-        .attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
+        .attr('x1', d => d.source.x + radius)
+        .attr('y1', d => d.source.y + radius )
+        .attr('x2', d => d.target.x + radius)
+        .attr('y2', d => d.target.y + radius );
     }
 
     /*function draws force directed graph in svg element*/
     function restart(nodes, links) {
 
-      console.log(nodes)
+      console.log(nodes);
 
       node = node.data(nodes, d => d.id);
       link = link.data(links, d => d.target.id - d.source.id);
@@ -113,16 +108,19 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
           .transition()
           .duration(1000)
           .ease(d3.easeCircleIn)
-          .attr('r', 0)
+          .attr('width', 0)
+          .attr('height', 0)
           .remove(); //remove old node from graph
 
       node = node.enter()
-                 .append('circle') //create node
+                 .append('image') //create node
                    .classed('node', true)
+                   .attr('xlink:href', './data/icons/tennis-ball.svg')
+                   .attr('width', radius * 2)
+                   .attr('height', radius * 2)
                    .style('fill', 'lightblue')
                    .style('stroke-width', 1)
-                   .style('stroke', 'darkblue')
-                   .attr('r', radius)
+                   .style('border', 'solid 2px black')
                    .on('mouseenter touchstart', d => tooltipOn(d, 
                    `<p><strong>${d.firstName} ${d.lastName}</strong></p>
                     <p>${d.countryCode}</p>`))
@@ -137,22 +135,27 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
     const worldMap = topojson.feature(worldTopo, worldTopo.objects.tracts).features;
 
     /* join players to world map */
-    worldMap.map(country => country.properties.players = nodes.filter(pl => pl.countryCode === country.properties['alpha-3']));
+    worldMap.map(country => country.properties.players = nodes.filter(pl => pl.countryCode === country.properties['country']));
 
     const projection = d3.geoFahey()
                          .translate([width/2, height/2]);
 
-/*    map.call(d3.zoom()
-	.on('zoom', () => {
-          let transform = d3.event.transform;
-          map.attr("transform", "translate(" + transform.x + "," + transform.y + ") scale(" + transform.k + ")");
-	}))
-*/
+
     let path = d3.geoPath(projection);
 
     const updateMap = d3.select('#map')
+                          .append('g')
                           .selectAll('path')
-                           .data(worldMap);
+                            .data(worldMap);
+
+
+   const g = d3.select('#map')
+                 .select('g');
+
+   g.call(d3.zoom()
+            .on('zoom', () => {
+              g.attr('transform', d3.event.transform);
+            }));
 
     updateMap
 	.enter()
@@ -161,13 +164,13 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
 	  .attr('d', path)
           .style('fill', 'grey')
           .on('mouseenter touchstart', d => tooltipOn(d, 
-          `<p><strong>${d.properties.name}</strong></p>
+          `<p><strong>${d.properties.country}</strong></p>
            <p>${d.properties.players.length} players</p>`))
           .on('mousemove touchmove', tooltipUpdate)
           .on('mouseout touchend', tooltipOff)
           .on('click', d => { //user select a country on the map
 
-	     let players = playersDataset.filter(player => player.countryCode === d.properties['alpha-3']);
+	     let players = playersDataset.filter(player => player.countryCode === d.properties['country']);
 	     console.log(players); //for debug purpose
 
              //make nodes set
@@ -177,8 +180,8 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
 	     links = makeLinks(nodes);
 
              //update simulation
-	     simulation.nodes(nodes)
-                       .force('link').links(links);
+	      simulation.nodes(nodes)
+                        .force('link').links(links);
 
              //restart simulation
              simulation.alpha(1).restart();
@@ -187,6 +190,36 @@ function main(err, worldTopo, rawPlayers, rawRankings) {
 	     restart(nodes, links);
 
 	  });
+
+
+          const plotData = rankingsDataset.filter(rank => rank.playerId === rankingsDataset[0].playerId)
+
+          console.log(plotData);
+
+          const x = d3.scaleTime()
+                      .range([0, width])
+                      .domain(d3.extent(plotData, d => d.date));
+
+          const y = d3.scaleLinear()
+                      .range([height, 0])
+                      .domain([d3.max(plotData, d => d.ranking), 100]);
+
+          const lineGenerator = d3.line()
+                                  .x(d => x(d.date))
+                                  .y(d => y(d.ranking));
+
+//          lineGenerator.domain(d3.extend
+
+
+          d3.select("#plot")
+            .selectAll('path')
+              .data(plotData)
+              .enter()
+              .append('path')
+                .attr('d', d => lineGenerator(d))
+                .attr('stroke-width', '2px')
+                .attr('stroke', 'grey')
+            
 };
 
 function makeLinks(nodes) {

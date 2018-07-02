@@ -15,16 +15,21 @@ h1 {
 
 svg {
   border: solid grey 1px;
+  margin: 5px;
 }
 
 #dashboard {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 #map {
   display: block;
-  margin-right: 5px;
+}
+
+#plot {
+  flex-basis: 80%;
 }
 
 #tooltip {
