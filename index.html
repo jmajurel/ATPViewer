@@ -1,24 +1,40 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ATP Viewer</title>
+    <title>Tennis Court</title>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.0/css/all.css" integrity="sha384-lKuwvrZot6UHsBSfcMvOkWwlCMgc0TaWr+30HWe3a4ltaBwTZhyTEggF5tJv8tbt" crossorigin="anonymous">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="./data/icons/tennis-ball.png">
   </head>
   <body>
     <div id='tooltip'></div>
-    <h1>ATP Ranking</h1>
-
+    <h1>
+      <img src="./data/icons/tennisRacket.svg" alt="Tennis Racket">
+      Tennis Court
+      <img src="./data/icons/tennisRacket.svg" alt="Tennis Racket">
+    </h1>
     <div id="dashboard">
       <svg id='map'></svg>
       <svg id='graph'></svg>
       <svg id='plot'></svg>
     </div>
 
+    <footer>
+      <p>Data visualization created by <a href="mailo:jeanfelix.majurel@gmail.com">JF Majurel</a></p>
+      <div class="contact">
+        <a href="https://www.linkedin.com/in/jean-félix-majurel-a142235a"><i class="fab fa-linkedin"></i></a>
+        <a href="https://github.com/jmajurel"><i class="fab fa-github"></i></a>
+      </div>
+
+      <p>Tennis databases, files, and algorithms by Jeff Sackmann / Tennis Abstract</p> 
+    </footer>
+
     <script src="https://d3js.org/d3.v4.js"></script>
     <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
     <script src="https://unpkg.com/topojson@3"></script>
     <script src="./helpers/dataparser.js"></script>
+    <script src="./helpers/dataformatter.js"></script>
     <script src="./helpers/tooltips.js"></script>
     <script src="app.js"></script>
   </body>

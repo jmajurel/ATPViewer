@@ -1,3 +1,4 @@
+
 const dateParser = d3.timeParse('%Y%m%d');
 
 const playerFormatter = (text) => {

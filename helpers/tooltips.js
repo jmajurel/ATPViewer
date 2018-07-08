@@ -1,3 +1,4 @@
+const tooltip = d3.select('#tooltip');
 
 function tooltipOn(d, content) {
 
