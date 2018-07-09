@@ -119,6 +119,10 @@ window.onload = () => {
                      .on('mouseenter touchstart', d => tooltipOn(d, 
                      `<p><strong>${d.firstName} ${d.lastName}</strong></p>
                       <p>${d.countryCode}</p>`))
+		     .on('click', d => {
+                       let rankings = rankingsDataset.filter(rank => rank.playerId === d.id);
+                       drawLineGraph(d, rankings);
+		     })
                      .on('mousemove touchmove', tooltipUpdate)
                      .on('mouseout touchend', tooltipOff)
                      .call(drag)
@@ -136,8 +140,8 @@ window.onload = () => {
       worldMap.features.map(country => country.properties.players = nodes.filter(pl => pl.countryCode === country.properties['country']));
 
       const projection = d3.geoFahey()
-                           .translate([widthMap/2, heightMap/2])
-                           .scale(50)
+                           .translate([widthMap/2 - 20, heightMap/2 + 50])
+                           .scale(150)
 
       let path = d3.geoPath(projection);
 
@@ -148,18 +152,9 @@ window.onload = () => {
 
      const g = map.select('g');
      const zoom = d3.zoom()
-                    .on('zoom', zoomed);
-
-     function zoomed() {
-zoom.scale(scale)
-            .translate(trans)
-       var e = d3.event,
-           scale = (e && e.scale) ? e.scale : zoom.scale(),
-           trans = (e && e.translate) ? e.translate : zoom.translate();
-           g.attr('transform', [
-                         'translate(' + trans + ')',
-                         'scale(' + scale + ')']);
-      }
+                    .on('zoom', () => {
+                      g.attr("transform", d3.event.transform);
+		    });
 
       g.call(zoom);
 
@@ -196,69 +191,7 @@ zoom.scale(scale)
                restart(nodes, links);
 
             });
-
-            /* linePlot graph */
-
-            const plot = d3.select('#plot')
-            const widthPlot = plot.node().clientWidth;
-            const heightPlot = plot.node().clientHeight;
-            const padding = 40;
-
-            const plotData = rankingsDataset.filter(rank => rank.playerId === rankingsDataset[0].playerId)
-
-            let xScale = d3.scaleTime()
-                        .range([padding, widthPlot - padding])
-
-            const xAxis = d3.axisBottom(xScale)
-                            .tickFormat(d3.timeFormat("%b %d, %Y"))
-
-
-            let yScale = d3.scaleLinear()
-                        .range([padding, heightPlot - padding * 2])
-
-            const yAxis = d3.axisLeft(yScale)
-                            .ticks(d3.max(plotData, d => d.ranking))
-                            .tickFormat(d3.format('d'))
-
-            const line = d3.line()
-                           .x(function(d) { return xScale(d.date); })
-                           .y(function(d) { return yScale(d.ranking); });
-
-            xScale = xScale.domain(d3.extent(plotData, d => d.date));
-            yScale = yScale.domain(d3.extent(plotData, d => d.ranking));
-
-            d3.select("#plot")
-              .append('path')
-                .attr('d', line(plotData))
-                .attr('stroke-width', '2px')
-                .attr('stroke', 'lightblue')
-                .style('fill', 'none')
-
-            d3.select("#plot")
-              .append('text')
-                .classed('title', true)
-                .attr('text-anchor', 'middle')
-                .attr('transform', `translate(${widthPlot/2}, ${padding/2})`)
-                .text('Player ranking')
-
-            d3.select("#plot")
-              .append('g')
-                .classed('xAxis', true)
-                .attr('transform', `translate(0, ${heightPlot - padding*2})`)
-                .call(xAxis)
-
-           const xLabels = d3.select('#plot .xAxis')
-                             .selectAll('text')
-               
-           xLabels
-             .attr('text-anchor', 'end')
-             .attr('alignment-baseline', 'hanging')
-           .attr('transform',  'rotate(-50)')
-
-             d3.select("#plot")
-              .append('g')
-                .classed('yAxis', true)
-                .attr('transform', `translate(${padding}, 0)`)
-                .call(yAxis)
+            const player = playersDataset.find(pl => pl.id === rankingsDataset[0].playerId);
+            drawLineGraph(player, rankingsDataset.filter(rank => rank.playerId === player.id));
   };
 }
