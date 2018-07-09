@@ -121,7 +121,7 @@ window.onload = () => {
                       <p>${d.countryCode}</p>`))
 		     .on('click', d => {
                        let rankings = rankingsDataset.filter(rank => rank.playerId === d.id);
-                       drawLineGraph(d, rankings);
+                       updateLineGraph(d, rankings);
 		     })
                      .on('mousemove touchmove', tooltipUpdate)
                      .on('mouseout touchend', tooltipOff)
@@ -191,7 +191,10 @@ window.onload = () => {
                restart(nodes, links);
 
             });
-            const player = playersDataset.find(pl => pl.id === rankingsDataset[0].playerId);
-            drawLineGraph(player, rankingsDataset.filter(rank => rank.playerId === player.id));
-  };
+
+      const player = playersDataset.find(pl => pl.id === rankingsDataset[0].playerId);
+      drawLineGraph(player, rankingsDataset.filter(rank => rank.playerId === player.id));
+
+    };
+
 }
