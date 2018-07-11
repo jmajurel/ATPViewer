@@ -4,18 +4,24 @@ const heightPlot = plot.node().clientHeight;
 const padding = 40;
 
 let xScale = d3.scaleTime()
-            .range([padding, widthPlot - padding]);
+            .range([padding, widthPlot - padding])
 
 let yScale = d3.scaleLinear()
             .range([padding, heightPlot - padding * 2]);
 
 const xAxis = d3.axisBottom(xScale)
+                .ticks(d3.timeWeek.every(2))
 		.tickFormat(d3.timeFormat("%b %d, %Y"))
-                .tickSizeInner(-heightPlot + padding * 2);
+                .tickSizeInner(-heightPlot + padding * 3)
+                .tickSizeInner(50)
+		.tickSizeOuter(2)
+
 
 const yAxis = d3.axisLeft(yScale)
 		.tickFormat(d3.format('d'))
-                .tickSizeInner(-widthPlot + padding * 2);
+		.ticks(3)
+                .tickSizeInner(-widthPlot + padding * 2)
+		.tickSizeOuter(-1)
 
 const line = d3.line()
                .x(function(d) { return xScale(d.date); })
@@ -23,8 +29,11 @@ const line = d3.line()
 
 function updateLineGraph(player, rankings) {
 
-  xScale.domain(d3.extent(rankings, d => d.date));
-  yScale.domain(d3.extent(rankings, d => d.ranking));
+  xScale.domain(d3.extent(rankings, d => d.date))
+        .nice()
+
+  yScale.domain(d3.extent(rankings, d => d.ranking))
+        .nice()
 
   plot.select('.line')
         .transition()
@@ -33,8 +42,16 @@ function updateLineGraph(player, rankings) {
   plot.select('.xAxis')
         .call(xAxis);
 
+  plot.selectAll('.xAxis .tick line')
+      .attr('stroke-dasharray', '10,10')
+      .attr('stroke', 'grey');
+
   plot.select('.yAxis')
         .call(yAxis);
+
+  plot.selectAll('.yAxis .tick line')
+      .attr('stroke-dasharray', '10,10')
+      .attr('stroke', 'grey');
 
   plot.select('.title')
         .text(`${player.firstName} - ${player.lastName}`);
@@ -45,9 +62,10 @@ function updateLineGraph(player, rankings) {
 function drawLineGraph(player, rankings) {
 
   xScale.domain(d3.extent(rankings, d => d.date))
-	.ticks(d3.max(rankings, d => d.ranking))
+        .nice()
 
-  yScale.domain(d3.extent(rankings, d => d.ranking));
+  yScale.domain(d3.extent(rankings, d => d.ranking))
+        .nice()
 
   plot.append('path')
         .classed('line', true)
