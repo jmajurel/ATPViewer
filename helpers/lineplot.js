@@ -9,54 +9,69 @@ let xScale = d3.scaleTime()
 let yScale = d3.scaleLinear()
             .range([padding, heightPlot - padding * 2]);
 
+const xAxis = d3.axisBottom(xScale)
+		.tickFormat(d3.timeFormat("%b %d, %Y"))
+                .tickSizeInner(-heightPlot + padding * 2);
+
+const yAxis = d3.axisLeft(yScale)
+		.tickFormat(d3.format('d'))
+                .tickSizeInner(-widthPlot + padding * 2);
+
 const line = d3.line()
                .x(function(d) { return xScale(d.date); })
                .y(function(d) { return yScale(d.ranking); });
 
 function updateLineGraph(player, rankings) {
 
+  xScale.domain(d3.extent(rankings, d => d.date));
+  yScale.domain(d3.extent(rankings, d => d.ranking));
+
   plot.select('.line')
-        .classed('line', true)
+        .transition()
         .attr('d', line(rankings))
-        .attr('stroke-width', '2px')
-        .attr('stroke', 'lightblue')
-        .style('fill', 'none');
+
+  plot.select('.xAxis')
+        .call(xAxis);
+
+  plot.select('.yAxis')
+        .call(yAxis);
+
+  plot.select('.title')
+        .text(`${player.firstName} - ${player.lastName}`);
+
 }
 
 /* linePlot graph */
 function drawLineGraph(player, rankings) {
 
+  xScale.domain(d3.extent(rankings, d => d.date))
+	.ticks(d3.max(rankings, d => d.ranking))
 
-
-  const xAxis = d3.axisBottom(xScale)
-		  .tickFormat(d3.timeFormat("%b %d, %Y"));
-
-
-  const yAxis = d3.axisLeft(yScale)
-		  .ticks(d3.max(rankings, d => d.ranking))
-		  .tickFormat(d3.format('d'));
-
-
-  xScale = xScale.domain(d3.extent(rankings, d => d.date));
-  yScale = yScale.domain(d3.extent(rankings, d => d.ranking));
+  yScale.domain(d3.extent(rankings, d => d.ranking));
 
   plot.append('path')
         .classed('line', true)
         .attr('d', line(rankings))
         .attr('stroke-width', '2px')
-        .attr('stroke', 'lightblue')
+        .attr('stroke', 'rgb(99, 214, 74)')
         .style('fill', 'none');
 
   plot.append('text')
     .classed('title', true)
     .attr('text-anchor', 'middle')
     .attr('transform', `translate(${widthPlot/2}, ${padding/2})`)
+    .style('font-weight', 'bold')
     .text(`${player.firstName} - ${player.lastName}`);
 
   plot.append('g')
     .classed('xAxis', true)
     .attr('transform', `translate(0, ${heightPlot - padding*2})`)
     .call(xAxis);
+
+  plot.selectAll('.xAxis .tick line')
+      .attr('stroke-dasharray', '10,10')
+      .attr('stroke', 'grey');
+
 
  const xLabels = d3.select('#plot .xAxis')
 		   .selectAll('text')
@@ -66,9 +81,13 @@ function drawLineGraph(player, rankings) {
    .attr('alignment-baseline', 'hanging')
  .attr('transform',  'rotate(-50)')
 
-   d3.select("#plot")
-    .append('g')
+  plot.append('g')
       .classed('yAxis', true)
       .attr('transform', `translate(${padding}, 0)`)
       .call(yAxis)
+
+  plot.selectAll('.yAxis .tick line')
+      .attr('stroke-dasharray', '10,10')
+      .attr('stroke', 'grey');
+
 }
