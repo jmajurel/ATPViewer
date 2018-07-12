@@ -13,7 +13,6 @@ const xAxis = d3.axisBottom(xScale)
                 .ticks(d3.timeWeek.every(2))
 		.tickFormat(d3.timeFormat("%b %d, %Y"))
                 .tickSizeInner(-heightPlot + padding * 3)
-                .tickSizeInner(50)
 		.tickSizeOuter(2)
 
 
