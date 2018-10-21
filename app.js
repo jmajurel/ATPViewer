@@ -26,7 +26,9 @@ window.onload = () => {
 
       /* force directed graph */
       const graph = d3.select('#graph');
-      const [widthGraph, heightGraph] =  [graph.node().clientWidth, graph.node().clientHeight];
+      const widthGraph = graph.node().clientWidth || graph.node().parentNode.clientWidth;
+      const heightGraph = graph.node().clientHeight || graph.node().parentNode.clientHeight;
+
       const radius = widthGraph * 0.02;
 
       //make players nodes for graph
@@ -131,7 +133,8 @@ window.onload = () => {
       }
       /* world map */
       const map = d3.select('#map');
-      const [widthMap, heightMap] =  [map.node().clientWidth, map.node().clientHeight];
+      const widthMap = map.node().clientWidth || map.node().parentNode.clientWidth;
+      const heightMap = map.node().clientHeight || map.node().parentNode.clientHeight;
 
       /* convert topoJson to GeoJson */
       const worldMap = topojson.feature(worldTopo, worldTopo.objects.tracts);

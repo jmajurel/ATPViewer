@@ -1,7 +1,11 @@
 const plot = d3.select('#plot')
-const widthPlot = plot.node().clientWidth;
-const heightPlot = plot.node().clientHeight;
-const padding = 40;
+
+const widthPlot = plot.node().clientWidth || plot.node().parentNode.clientWidth;
+const heightPlot = plot.node().clientHeight || plot.node().parentNode.clientHeight;
+
+console.log(widthPlot , heightPlot); 
+
+const padding = Math.max(widthPlot, heightPlot) * 0.05;
 
 let xScale = d3.scaleTime()
             .range([padding, widthPlot - padding])
